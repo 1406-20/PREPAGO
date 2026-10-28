@@ -1,0 +1,905 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BI Prepago Calidad</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{
+  color-scheme:light;
+  --page:#f9f9f7; --surface:#fcfcfb; --surface-2:#f3f2ee; --border:#e1e0d9; --axis:#c3c2b7;
+  --ink:#0b0b0b; --ink-2:#52514e; --muted:#898781;
+  --accent:#c8102e; --accent-ink:#ffffff;
+  --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100;
+  --good:#0ca30c; --warn:#fab219; --crit:#d03b3b;
+  --heat-hi:42,120,214; --heat-lo:227,73,72; --seq:42,120,214;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --page:#0d0d0d; --surface:#1a1a19; --surface-2:#232321; --border:#2c2c2a; --axis:#383835;
+    --ink:#f0efec; --ink-2:#c3c2b7; --muted:#898781;
+    --accent:#e0384f;
+    --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500;
+    --heat-hi:57,135,229; --heat-lo:230,103,103; --seq:57,135,229;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --page:#0d0d0d; --surface:#1a1a19; --surface-2:#232321; --border:#2c2c2a; --axis:#383835;
+  --ink:#f0efec; --ink-2:#c3c2b7; --muted:#898781;
+  --accent:#e0384f;
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500;
+  --heat-hi:57,135,229; --heat-lo:230,103,103; --seq:57,135,229;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--page);color:var(--ink);font:14px/1.45 "Segoe UI",system-ui,-apple-system,sans-serif;font-variant-numeric:tabular-nums}
+header{background:var(--surface);border-bottom:1px solid var(--border);padding:12px 16px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;position:sticky;top:0;z-index:20}
+header h1{font-size:17px;margin:0;font-weight:650}
+header h1 span{color:var(--accent)}
+.meta{color:var(--muted);font-size:12px}
+.spacer{flex:1}
+input.th{width:52px;padding:3px 6px}
+.marks{display:flex;gap:6px;flex-wrap:wrap;margin:2px 0 10px}
+.marks button{border:1px solid var(--border);background:var(--surface);color:var(--ink-2);border-radius:999px;padding:4px 12px;font:inherit;font-size:12px;cursor:pointer}
+.marks button:hover{background:var(--surface-2);color:var(--ink)}
+.marks button.on{background:var(--ink);border-color:var(--ink);color:var(--surface);font-weight:600}
+.tq{width:150px;padding:3px 8px;font-size:12px}
+.btn{border:1px solid var(--border);background:var(--surface);color:var(--ink);border-radius:8px;padding:6px 12px;font:inherit;cursor:pointer}
+.btn:hover{background:var(--surface-2)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.sm{padding:2px 8px;font-size:12px}
+nav{display:flex;gap:2px;overflow-x:auto;padding:0 16px;background:var(--surface);border-bottom:1px solid var(--border);position:sticky;top:57px;z-index:19}
+nav button{border:0;background:none;color:var(--ink-2);padding:10px 12px;font:inherit;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap}
+nav button.on{color:var(--ink);border-bottom-color:var(--accent);font-weight:600}
+.filters{display:flex;gap:8px;flex-wrap:wrap;padding:10px 16px;align-items:center;position:sticky;top:101px;z-index:18;background:var(--page);border-bottom:1px solid var(--border);margin-bottom:12px}
+.ms{position:relative}
+.ms>button{max-width:230px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ms .panel{display:none;position:absolute;top:100%;left:0;margin-top:4px;background:var(--surface);border:1px solid var(--border);border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.15);padding:8px;z-index:30;min-width:230px;max-height:340px;overflow:auto}
+.ms.open .panel{display:block}
+.ms label{display:flex;gap:6px;align-items:center;padding:3px 2px;cursor:pointer;white-space:nowrap}
+.ms .acts{display:flex;gap:6px;margin-bottom:6px}
+.filters input[type=date]{border:1px solid var(--border);background:var(--surface);color:var(--ink);border-radius:8px;padding:5px 8px;font:inherit}
+main{padding:0 16px 40px}
+.grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(380px,1fr))}
+.grid.full{grid-template-columns:1fr}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px;min-width:0}
+.card h3{margin:0 0 2px;font-size:14px;font-weight:650;display:flex;gap:8px;align-items:center}
+.card h3 .spacer{flex:1}
+.card .sub{color:var(--muted);font-size:12px;margin-bottom:10px}
+.tw{overflow:auto;max-height:560px}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{padding:5px 8px;text-align:right;border-bottom:1px solid var(--border);white-space:nowrap}
+th{position:sticky;top:0;background:var(--surface);color:var(--ink-2);font-weight:600;font-size:12px;cursor:default;z-index:1}
+th.sort{cursor:pointer}
+th.sort:hover{color:var(--ink)}
+td.t,th.t{text-align:left;white-space:normal;min-width:120px}
+tr.grp td{font-weight:650;background:var(--surface-2)}
+tr.tot td{font-weight:700;border-top:2px solid var(--axis)}
+tr.ind td.t{padding-left:22px}
+tr.ind2 td.t{padding-left:36px}
+.ico{display:inline-block;width:16px;height:16px;border-radius:50%;font-size:11px;line-height:16px;text-align:center;color:#fff;font-weight:700;margin-left:6px;vertical-align:-2px}
+.ico.g{background:var(--good)} .ico.w{background:var(--warn);color:#0b0b0b} .ico.c{background:var(--crit)}
+.bar{position:relative}
+.bar i{position:absolute;left:0;top:3px;bottom:3px;background:rgba(var(--seq),.22);border-radius:0 4px 4px 0}
+.bar span{position:relative}
+.kpis{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin-bottom:14px}
+.kpi{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 14px}
+.why{margin-bottom:14px}
+.whead{display:flex;gap:24px;align-items:center;flex-wrap:wrap;padding-bottom:12px;border-bottom:1px solid var(--border);margin-bottom:12px}
+.whead .l{color:var(--ink-2);font-size:12px}
+.whead .big{font-size:34px;font-weight:700;line-height:1.1}
+.wsum{font-size:15px}
+.wfocus{background:var(--surface-2);border-left:3px solid var(--accent);padding:6px 10px;border-radius:6px;margin-bottom:12px;font-size:13px}
+.wgrid{display:grid;gap:18px;grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
+.wt{font-weight:650;margin-bottom:8px;display:flex;gap:8px;align-items:center}
+.wn{display:inline-flex;width:20px;height:20px;border-radius:50%;background:var(--ink);color:var(--surface);font-size:12px;align-items:center;justify-content:center}
+.wl{padding:6px 8px;border-radius:8px;margin-bottom:4px}
+.wl.click{cursor:pointer}
+.wl.click:hover{background:var(--surface-2)}
+.wk{display:flex;justify-content:space-between;gap:10px;font-size:13px}
+.wk b{white-space:nowrap;color:var(--crit)}
+.wbar{height:6px;background:var(--surface-2);border-radius:3px;margin:4px 0 3px;overflow:hidden}
+.wbar i{display:block;height:100%;background:rgba(var(--heat-lo),.75);border-radius:3px}
+.wd{font-size:12px;color:var(--muted)}
+.kpi.kclick{cursor:pointer;transition:.15s}
+.kpi.kclick:hover{border-color:var(--accent);box-shadow:0 2px 10px rgba(0,0,0,.08)}
+.kpi .l{color:var(--ink-2);font-size:12px}
+.kpi .v{font-size:26px;font-weight:650;margin-top:2px}
+.kpi .d{color:var(--muted);font-size:12px}
+.chart{position:relative;height:280px}
+.empty{padding:60px 16px;text-align:center;color:var(--ink-2)}
+.up{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(320px,1fr))}
+.drop{border:2px dashed var(--axis);border-radius:12px;padding:22px;text-align:center;cursor:pointer;transition:.15s}
+.drop.over{border-color:var(--accent);background:var(--surface-2)}
+.drop b{display:block;font-size:15px;margin-bottom:4px}
+.drop .st{margin-top:8px;font-size:12px;color:var(--ink-2)}
+.drop.ok{border-style:solid;border-color:var(--good)}
+.note{font-size:12px;color:var(--ink-2)}
+.warnbox{border-left:3px solid var(--warn);background:var(--surface-2);padding:8px 12px;border-radius:6px;font-size:13px;margin-top:10px}
+.errbox{border-left:3px solid var(--crit);background:var(--surface-2);padding:8px 12px;border-radius:6px;font-size:13px;margin-top:10px}
+.seg{display:inline-flex;border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.seg button{border:0;background:var(--surface);color:var(--ink-2);padding:4px 10px;font:inherit;font-size:12px;cursor:pointer}
+.seg button.on{background:var(--accent);color:var(--accent-ink)}
+select.in,input.in{border:1px solid var(--border);background:var(--surface);color:var(--ink);border-radius:8px;padding:5px 8px;font:inherit}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--ink-2);margin:4px 0 8px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+tr.click{cursor:pointer}
+tr.click:hover td{background:var(--surface-2)!important}
+tr.click td.t:after{content:' ›';color:var(--muted)}
+dialog{border:1px solid var(--border);border-radius:14px;background:var(--page);color:var(--ink);padding:0;width:min(1200px,96vw);max-height:92vh}
+dialog::backdrop{background:rgba(0,0,0,.45)}
+.mh{display:flex;gap:10px;align-items:center;padding:12px 16px;background:var(--surface);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:5}
+.mh h2{margin:0;font-size:16px;flex:1}
+.mb{padding:14px 16px;overflow:auto;max-height:calc(92vh - 60px)}
+.mb .kpis{margin-bottom:14px}
+@media (max-width:600px){ .grid{grid-template-columns:1fr} nav{top:0;position:relative} header{position:relative} }
+</style>
+</head>
+<body>
+<header>
+  <h1><span>■</span> BI Prepago · Calidad y Motivo de Llamada</h1>
+  <span class="meta" id="metaInfo">Sin datos cargados</span>
+  <div class="spacer"></div>
+  <span class="meta" title="Cortes de los formatos condicionales del Excel: ✕ bajo el 1er valor, ! entre ambos, ✓ desde el 2do">Semáforo Nota ·
+    Sup./Asesor/Motivo <input class="in th" id="thA1" type="number" value="85"> – <input class="in th" id="thA2" type="number" value="90">
+    · Resto <input class="in th" id="thB1" type="number" value="80"> – <input class="in th" id="thB2" type="number" value="85"></span>
+  <button class="btn" id="themeBtn" title="Cambiar tema">◐</button>
+</header>
+<nav id="nav"></nav>
+<div class="filters" id="filters" hidden></div>
+<main id="main"></main>
+<dialog id="modal"><div class="mh"><button class="btn sm" id="mBack" hidden>‹ Volver</button><h2 id="mTitle"></h2><button class="btn sm" id="mClose">✕ Cerrar</button></div><div class="mb" id="mBody"></div></dialog>
+
+<script>
+"use strict";
+/* ============ Definición del modelo (replica las fórmulas del Excel) ============ */
+const ITEMS=[ // key, etiqueta, columna origen, NA->vacío
+ ['1.1','1.1 Escucha atentamente al cliente','QID28',0],
+ ['1.1.1','1.1.1 Lo manifestado por el cliente al inicio','QID92_1',0],
+ ['1.1.2','1.1.2 Respuestas y comentarios del cliente','QID92_2',0],
+ ['1.2','1.2 Diagnostica la necesidad real del cliente','QID29',0],
+ ['1.3','1.3 Valida titularidad','QID32',1],
+ ['1.3.1','1.3.1 Nombres y apellidos completos','QID33_1',0],
+ ['1.3.2','1.3.2 Tipo de documento de identidad','QID33_2',0],
+ ['1.3.3','1.3.3 Número de documento de identidad','QID33_3',0],
+ ['1.3.4','1.3.4 Lugar de nacimiento','QID33_4',0],
+ ['1.3.5','1.3.5 Fecha de nacimiento','QID33_5',0],
+ ['1.4','1.4 Brinda la información adecuada','QID34',0],
+ ['1.5','1.5 Realiza pasos necesarios para encontrar solución','QID37',0],
+ ['1.6','1.6 Registra la acción realizada','QID40',1],
+ ['1.6.1','1.6.1 Tipifica la gestión','QID41_1',1],
+ ['1.6.2','1.6.2 Tipificación utilizada es la correcta','QID41_2',1],
+ ['1.6.3','1.6.3 Notas/plantillas de tipificación correctas','QID41_3',1],
+ ['1.7','1.7 Brinda código de atención','QID42',1],
+ ['1.8','1.8 Mantiene comunicación fluida','QID44',0],
+ ['2','2. Ofrecimiento Positivo','QID47',0],
+ ['3.1','3.1 Se presenta con nombre y apellido','QID55',0],
+ ['3.2','3.2 Personaliza la atención','QID58',0],
+ ['3.3','3.3 Se comunica de forma natural','QID59',0],
+ ['3.3.1','3.3.1 Clara y segura','QID60_1',0],
+ ['3.3.2','3.3.2 Sin expresarse de forma robotizada','QID60_2',0],
+ ['3.4','3.4 Atiende acorde con la emoción del cliente','QID61',0],
+ ['3.5','3.5 Busca conectar con el cliente (vínculo emocional)','QID63',0],
+ ['3.6','3.6 Informa al cliente sobre la encuesta','@3.6 Informa',1],
+];
+const ITEM_LBL=Object.fromEntries(ITEMS.map(i=>[i[0],i[1]]));
+const CRIT=[
+ 'AS deja en espera y cliente corta la comunicación',
+ 'AS transfiere a locución de vicio, IVR de Campañas',
+ 'AS deriva a otro canal cuando debe atenderse en la llamada',
+ 'AS transfiere a locución sin concluir la atención',
+ 'AS menciona palabras soeces',
+ 'AS se dirige con mala actitud y/o sarcasmo',
+ 'AS realiza actividades diferentes en su atención',
+ 'AS no cuenta con una dicción correcta'];
+const BLOCKS=[
+ {h:'Solución',nota:'sol',items:['1.1','1.2','1.3','1.4','1.5','1.6','1.7','1.8']},
+ {h:'Ofrecimiento',nota:'ofr',items:['2']},
+ {h:'Conexión',nota:'con',items:['3.1','3.2','3.3','3.4','3.5','3.6']},
+];
+const PARETO_ITEMS=['3.2','1.8','1.6','3.5','2','3.6','1.5','1.4','3.4','1.1','1.3','3.1','1.7','1.2','3.3','3.3.1'];
+const DIAS=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+const DIA_ORD=['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
+const SIN='(Sin padrón)';
+
+/* ============ Utilidades ============ */
+const $=s=>document.querySelector(s);
+const el=(tag,attrs={},...kids)=>{const e=document.createElement(tag);for(const[k,v]of Object.entries(attrs)){if(k==='class')e.className=v;else if(k==='html')e.innerHTML=v;else if(k.startsWith('on'))e.addEventListener(k.slice(2),v);else if(v!=null)e.setAttribute(k,v)}for(const k of kids.flat())if(k!=null)e.append(k.nodeType?k:String(k));return e};
+const norm=v=>String(v??'').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/�/g,'').trim().toLowerCase();
+const isNo=v=>norm(v)==='no';
+const isNA=v=>norm(v).startsWith('no aplica');
+const isSi=v=>{const n=norm(v);return n!==''&&n.startsWith('s')};
+const num=v=>{if(v==null||v==='')return null;const n=typeof v==='number'?v:parseFloat(String(v).replace(',','.'));return isNaN(n)?null:n};
+const mean=(rs,f)=>{let s=0,c=0;for(const r of rs){const v=f(r);if(v!=null){s+=v;c++}}return c?s/c:null};
+const sum=(rs,f)=>rs.reduce((a,r)=>a+(f(r)||0),0);
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function groupBy(rs,fn){const m=new Map();for(const r of rs){const k=fn(r);if(!m.has(k))m.set(k,[]);m.get(k).push(r)}return m}
+const antigKey=s=>/menor/i.test(s)?0:/mayor/i.test(s)?999:(parseInt((String(s).match(/\d+/)||[])[0])||500);
+function sortKeys(keys,kind){
+  const a=[...keys];
+  if(kind==='dia')return a.sort((x,y)=>DIA_ORD.indexOf(x)-DIA_ORD.indexOf(y));
+  if(kind==='antig')return a.sort((x,y)=>antigKey(x)-antigKey(y));
+  if(kind==='num')return a.sort((x,y)=>(+x)-(+y));
+  return a.sort((x,y)=>String(x).localeCompare(String(y),'es',{numeric:true}));
+}
+const fmtDate=d=>d?d.slice(8,10)+'/'+d.slice(5,7):'';
+function toISODate(v){
+  if(v==null||v==='')return '';
+  if(typeof v==='number'){const d=new Date(Math.round((v-25569)*864e5));return d.toISOString().slice(0,10)}
+  if(v instanceof Date)return v.toISOString().slice(0,10);
+  const s=String(v).trim();
+  let m=s.match(/^(\d{4})-(\d{2})-(\d{2})/);if(m)return `${m[1]}-${m[2]}-${m[3]}`;
+  m=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);if(m)return `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;
+  return '';
+}
+function toHour(v){
+  if(v==null||v==='')return null;
+  if(typeof v==='number'){const f=v-Math.floor(v);return Math.floor(f*24+1e-9)}
+  const m=String(v).match(/(\d{1,2}):\d{2}/);return m?parseInt(m[1]):null;
+}
+const TH=p=>[+$('#th'+p+'1').value||0,+$('#th'+p+'2').value||0];
+const meta=()=>TH('A')[1];
+
+/* ============ Lectura de archivos ============ */
+function readFile(file){
+  return new Promise((res,rej)=>{const fr=new FileReader();fr.onload=()=>{try{res(XLSX.read(new Uint8Array(fr.result),{type:'array',cellDates:false}))}catch(e){rej(e)}};fr.onerror=rej;fr.readAsArrayBuffer(file)});
+}
+const sheetRows=ws=>XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:''});
+function findSheet(wb,re){return wb.SheetNames.find(n=>re.test(n))}
+
+function pickEvasSheet(wb){
+  const n=findSheet(wb,/evas|ipsos|monitoreo|data/i)||wb.SheetNames.find(n=>sheetRows(wb.Sheets[n]).slice(0,5).some(r=>r.some(c=>/^QID\d/.test(String(c)))));
+  return n?sheetRows(wb.Sheets[n]):null;
+}
+function pickDotaSheet(wb){
+  const n=findSheet(wb,/dota|padr|n[oó]mina|asesores/i)||wb.SheetNames.find(n=>sheetRows(wb.Sheets[n]).slice(0,10).some(r=>r.some(c=>['usuario','id usuario'].includes(norm(c)))));
+  return n?sheetRows(wb.Sheets[n]):null;
+}
+
+function parseDota(rows){
+  const hi=rows.slice(0,15).findIndex(r=>r.some(c=>['usuario','id usuario'].includes(norm(c))));
+  if(hi<0)throw new Error('No se encontró la columna USUARIO en el padrón (Dota).');
+  const H=rows[hi].map(norm);
+  const find=(...names)=>{for(const n of names){const i=H.indexOf(n);if(i>=0)return i}return -1};
+  const fpre=p=>H.findIndex(h=>h.startsWith(p));
+  const c={user:find('usuario','id usuario'),name:find('nombre y apellido','nombres asesor','nombre'),antig:find('antiguedad'),sup:find('supervisor'),mod:find('modalidad','modalidad gestion'),hor:fpre('horario'),est:find('estado')};
+  const map=new Map();
+  for(const r of rows.slice(hi+1)){
+    const u=String(r[c.user]??'').trim().toUpperCase();if(!u)continue;
+    map.set(u,{name:String(r[c.name]??'').trim(),antig:String(r[c.antig]??'').trim(),sup:String(r[c.sup]??'').trim(),mod:String(r[c.mod]??'').trim().toUpperCase(),hor:c.hor>=0?String(r[c.hor]??'').trim():'',est:c.est>=0?String(r[c.est]??'').trim():''});
+  }
+  return map;
+}
+
+function parseEvas(rows,dota){
+  const hi=rows.slice(0,8).findIndex(r=>r.some(c=>/^QID\d/.test(String(c))));
+  if(hi<0)throw new Error('No se encontraron columnas QID en la base de evaluaciones.');
+  const H=rows[hi].map(h=>String(h).trim());
+  const col=code=>{
+    if(code.startsWith('@')){const p=code.slice(1);return H.findIndex(h=>h.startsWith(p))}
+    return H.findIndex(h=>h===code||h.startsWith(code+' -')||h.startsWith(code+' –'));
+  };
+  const need=['QID1','QID11','QID76_4_1','QID88_6'];
+  const miss=need.filter(c=>col(c)<0);
+  if(miss.length)throw new Error('Faltan columnas en la base de evaluaciones: '+miss.join(', '));
+  const C={};for(const k of ['QID1','QID7','QID10','QID11','QID12','QID17','QID18','QID19','QID27','QID35','QID38','QID47','QID76_1_1','QID76_2_1','QID76_3_1','QID76_4_1','QID77','QID78_2','QID78_3','QID78_4','QID88_1','QID88_2','QID88_6'])C[k]=col(k);
+  const IC=ITEMS.map(i=>col(i[2]));
+  const CC=[1,2,3,4,5,6,7,8].map(i=>col('QID104_'+i));
+  const g=(r,k)=>C[k]>=0?r[C[k]]:'';
+  const s=(r,k)=>String(g(r,k)??'').trim();
+  const out=[];
+  for(const r of rows.slice(hi+1)){
+    if(r.some(c=>String(c).includes('ImportId')))continue;
+    const cod=s(r,'QID1').toUpperCase();
+    const fecha=toISODate(g(r,'QID11'));
+    if(!cod&&!fecha)continue;
+    const d=dota.get(cod);
+    const sc={},er={};
+    ITEMS.forEach(([k,,,na],i)=>{const v=IC[i]>=0?r[IC[i]]:'';
+      if(v===''||v==null)sc[k]=null;else if(isNo(v))sc[k]=0;else if(na&&isNA(v))sc[k]=null;else sc[k]=1;
+      er[k]=isNo(v)?1:0;});
+    const cr=CC.map(i=>i>=0&&isSi(r[i])?1:0);
+    out.push({
+      cod,fecha,hora:toHour(g(r,'QID12')),dia:fecha?DIAS[new Date(fecha+'T12:00:00').getDay()]:'',
+      semana:s(r,'QID88_6')||'(Sin semana)',tipo:s(r,'QID88_1')||'(Sin tipo)',bpo:s(r,'QID88_2'),monitor:s(r,'QID27'),
+      campana:s(r,'QID7'),idc:s(r,'QID10'),tll:s(r,'QID17'),mot1:s(r,'QID18')||'(Sin motivo)',sub1:s(r,'QID19')||'(Sin submotivo)',mot15:s(r,'QID38'),mot14:s(r,'QID35'),
+      ofrRaw:s(r,'QID47'),fcr:isSi(g(r,'QID77'))?'Sí':isNo(g(r,'QID77'))?'No':'',nfMot:s(r,'QID78_2'),nfProc:s(r,'QID78_3'),nfDet:s(r,'QID78_4'),
+      sol:num(g(r,'QID76_1_1')),ofr:num(g(r,'QID76_2_1')),con:num(g(r,'QID76_3_1')),nota:num(g(r,'QID76_4_1')),
+      s:sc,e:er,c:cr,
+      agente:d?d.name:SIN+' '+cod,sup:d?d.sup:SIN,antig:d?d.antig:SIN,tges:d?d.mod:SIN,horario:d?d.hor:'',matched:!!d
+    });
+  }
+  return out;
+}
+
+/* ============ Estado ============ */
+const STORE='bi_prepago_calidad_v1';
+let DATA=null; // {recs, meta}
+let FILT={tipo:new Set(),semana:new Set(),sup:new Set(),antig:new Set(),tges:new Set(),mot1:new Set(),monitor:new Set(),d1:'',d2:''};
+let VIEW='carga';
+const UP={evas:null,dota:null}; // {name, rows}
+function save(){try{localStorage.setItem(STORE,JSON.stringify(DATA))}catch(e){console.warn('No se pudo guardar en el navegador',e)}}
+function load(){try{const s=localStorage.getItem(STORE);if(s)DATA=JSON.parse(s)}catch(e){DATA=null}}
+
+function rowsF(skip){
+  if(!DATA)return [];
+  const f=FILT;
+  return DATA.recs.filter(r=>
+    (skip==='tipo'||!f.tipo.size||f.tipo.has(r.tipo))&&(!f.semana.size||f.semana.has(r.semana))&&(!f.sup.size||f.sup.has(r.sup))&&
+    (!f.antig.size||f.antig.has(r.antig))&&(!f.tges.size||f.tges.has(r.tges))&&(!f.mot1.size||f.mot1.has(r.mot1))&&
+    (!f.monitor.size||f.monitor.has(r.monitor))&&(!f.d1||r.fecha>=f.d1)&&(!f.d2||r.fecha<=f.d2));
+}
+
+/* ============ Agregados ============ */
+const agg=rs=>({n:rs.length,sol:mean(rs,r=>r.sol),ofr:mean(rs,r=>r.ofr),con:mean(rs,r=>r.con),nota:mean(rs,r=>r.nota)});
+const itemAvg=(rs,k)=>{const v=mean(rs,r=>r.s[k]);return v==null?null:v*100};
+const fcrPct=rs=>{const v=rs.filter(r=>r.fcr);return v.length?100*v.filter(r=>r.fcr==='Sí').length/v.length:null};
+const NC=p=>[{k:'n',h:'# Evas',f:'i',bar:1},{k:'sol',h:'Solución',f:'p'},{k:'ofr',h:'Ofrecimiento',f:'p'},{k:'con',h:'Conexión',f:'p'},{k:'nota',h:'Nota',f:'p',icon:p}];
+const NOTAS_COLS=NC('B'),NOTAS_A=NC('A');
+
+function groupRows(rs,fn,kind,extra){
+  const m=groupBy(rs,fn);
+  return sortKeys(m.keys(),kind).map(k=>Object.assign({key:k},agg(m.get(k)),extra?extra(m.get(k)):{}));
+}
+
+/* ============ Render helpers ============ */
+let CHARTS=[];
+function css(v){return getComputedStyle(document.documentElement).getPropertyValue(v).trim()}
+function icon(v,p){if(v==null)return '';const [u,m]=TH(p==='B'?'B':'A');return v>=m?'<span class="ico g" title="Cumple meta">✓</span>':v>=u?'<span class="ico w" title="Entre umbral y meta">!</span>':'<span class="ico c" title="Bajo umbral">✕</span>'}
+function heatQ(v,p){if(v==null)return '';const [u,m]=TH(p==='A'?'A':'B');let a,c;if(v>=m){c='--heat-hi';a=Math.min(1,(v-m)/(100-m||1))*.4+.05}else if(v>=u)return '';else{c='--heat-lo';a=Math.min(1,(u-v)/30)*.5+.08}return `background:rgba(${css(c)},${a.toFixed(3)})`}
+function heatS(v,max){if(!v||!max)return '';return `background:rgba(${css('--seq')},${(.08+.5*v/max).toFixed(3)})`}
+function fmt(v,f){if(v==null||v==='')return f==='t'?'':'–';if(f==='i')return Number(v).toLocaleString('es-PE');if(f==='p')return Number(v).toFixed(1)+'%';if(f==='n1')return '−'+Number(v).toFixed(1);return esc(v)}
+
+function card(title,sub,body,opts={}){
+  const h=el('h3',{},title,el('span',{class:'spacer'}));
+  if(opts.tools)h.append(...[].concat(opts.tools));
+  if(opts.csv)h.append(el('button',{class:'btn sm',title:'Descargar CSV',onclick:()=>downloadCSV(title,opts.csv())},'CSV'));
+  const c=el('div',{class:'card'+(opts.cls?' '+opts.cls:'')},h);
+  if(sub)c.append(el('div',{class:'sub'},sub));
+  c.append(body);return c;
+}
+function downloadCSV(name,rows){
+  const s=rows.map(r=>r.map(v=>{v=v==null?'':String(v);return /[;"\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v}).join(';')).join('\r\n');
+  const a=el('a',{href:URL.createObjectURL(new Blob(['﻿'+s],{type:'text/csv;charset=utf-8'})),download:name.replace(/[^\w\- ]+/g,'_')+'.csv'});a.click();
+}
+/* Tabla genérica: cols [{k,h,f:'t'|'i'|'p',q,icon,bar,seq}], rows [{...,_cls}]
+   - Orden: clic en el encabezado (en tablas jerárquicas ordena dentro de cada grupo)
+   - Búsqueda: wrap.setQ(texto) filtra filas; en tablas jerárquicas conserva el grupo de cada fila */
+function table(cols,rows,opts={}){
+  const wrap=el('div',{class:'tw'});let sortK=null,dir=1,q='';
+  const maxes={};cols.forEach(c=>{if(c.bar||c.seq)maxes[c.k]=Math.max(0,...rows.filter(r=>r._cls!=='tot'&&r._cls!=='grp').map(r=>+r[c.k]||0))});
+  if(opts.seqMax)cols.forEach(c=>{if(c.seq)maxes[c.k]=opts.seqMax});
+  const tot=rows.filter(r=>r._cls==='tot');
+  // Agrupar: cada fila 'grp' con sus hijas (ind/ind2) hasta la siguiente 'grp'
+  const blocks=[];for(const r of rows){if(r._cls==='tot')continue;if(r._cls==='grp'||!blocks.length||!/ind/.test(r._cls||''))blocks.push({h:r,kids:[]});else blocks[blocks.length-1].kids.push(r)}
+  const txt=r=>norm(cols.filter(c=>c.f==='t').map(c=>r[c.k]).join(' '));
+  const cmp=(a,b)=>{const x=a[sortK],y=b[sortK];if(x==null&&y==null)return 0;if(x==null)return 1;if(y==null)return -1;return (typeof x==='number'&&typeof y==='number'?x-y:String(x).localeCompare(String(y),'es',{numeric:true}))*dir};
+  function render(){
+    let bl=blocks.map(b=>({h:b.h,kids:b.kids}));
+    if(q){bl=bl.map(b=>{if(txt(b.h).includes(q))return b;const k=b.kids.filter(r=>txt(r).includes(q));return k.length?{h:b.h,kids:k}:null}).filter(Boolean)}
+    if(sortK){bl.sort((a,b)=>cmp(a.h,b.h));bl.forEach(b=>b.kids=b.kids.slice().sort(cmp))}
+    const data=bl.flatMap(b=>[b.h,...b.kids]).concat(q?[]:tot);
+    const t=el('table');
+    const tr=el('tr');cols.forEach(c=>{const th=el('th',{class:(c.f==='t'?'t ':'')+'sort',title:(c.title||c.h)+' · clic para ordenar'},c.h+(sortK===c.k?(dir>0?' ▲':' ▼'):''));th.onclick=()=>{if(sortK===c.k){if(dir===(c.f==='t'?-1:1)){sortK=null}else dir=-dir}else{sortK=c.k;dir=c.f==='t'?1:-1}render()};tr.append(th)});
+    t.append(el('thead',{},tr));
+    const tb=el('tbody');
+    for(const r of data){
+      const row=el('tr',{class:(r._cls||'')+(opts.onRow&&r._cls!=='tot'&&r._drill!==false&&(!opts.canRow||opts.canRow(r))?' click':'')});
+      if(row.classList.contains('click'))row.onclick=()=>opts.onRow(r);
+      for(const c of cols){
+        const v=r[c.k];let st='',inner=fmt(v,c.f);
+        if(c.q&&r._cls!=='grp'&&r._cls!=='tot')st=heatQ(v,c.q);
+        if(c.seq&&r._cls!=='tot')st=heatS(v,maxes[c.k]);
+        if(c.icon)inner+=icon(v,c.icon);
+        if(c.bar&&r._cls!=='tot'&&maxes[c.k]){row.append(el('td',{class:'bar'},el('i',{style:`width:${Math.min(100,100*(+v||0)/maxes[c.k]).toFixed(1)}%`}),el('span',{html:inner})));continue}
+        row.append(el('td',{class:c.f==='t'?'t':'',style:st||null,html:inner}));
+      }
+      tb.append(row);
+    }
+    if(!data.length)tb.append(el('tr',{},el('td',{class:'t',colspan:cols.length,style:'color:var(--muted)'},'Sin coincidencias')));
+    t.append(tb);wrap.replaceChildren(t);
+  }
+  render();
+  wrap.setQ=v=>{q=norm(v);render()};
+  wrap.nRows=blocks.reduce((a,b)=>a+1+b.kids.length,0);
+  wrap.csv=()=>[cols.map(c=>c.h)].concat(rows.map(r=>cols.map(c=>{const v=r[c.k];return v==null?'':c.f==='p'?Number(v).toFixed(2):v})));
+  return wrap;
+}
+function searchBox(t,ph){const i=el('input',{class:'in tq',type:'search',placeholder:ph||'Buscar en la tabla…'});i.oninput=()=>t.setQ(i.value);return i}
+function tcard(title,sub,cols,rows,opts={}){
+  const t=table(cols,rows,opts);
+  const tools=[].concat(opts.tools||[]);
+  if(t.nRows>5)tools.unshift(searchBox(t));
+  return card(title,sub,t,{csv:t.csv,...opts,tools});
+}
+function withTotal(rows,rs,extra){return rows.concat([Object.assign({key:'Total',_cls:'tot'},agg(rs),extra?extra(rs):{})])}
+const KEYCOL=h=>({k:'key',h,f:'t'});
+
+function chartBox(cfg,h){
+  const cv=el('canvas');const box=el('div',{class:'chart',style:h?`height:${h}px`:null},cv);
+  requestAnimationFrame(()=>{CHARTS.push(new Chart(cv,cfg))});return box;
+}
+function baseOpts(extra={}){
+  const ink2=css('--ink-2'),grid=css('--border'),mut=css('--muted');
+  return Object.assign({responsive:true,maintainAspectRatio:false,animation:false,
+    interaction:{mode:'index',intersect:false},
+    plugins:{legend:{labels:{color:ink2,boxWidth:10,boxHeight:10,useBorderRadius:true,borderRadius:3}},tooltip:{callbacks:{}}},
+    scales:{x:{ticks:{color:mut},grid:{display:false},border:{color:css('--axis')}},y:{ticks:{color:mut},grid:{color:grid},border:{display:false}}}},extra);
+}
+function pctAxis(o,min){o.scales.y.min=min??0;o.scales.y.max=100;o.scales.y.ticks.callback=v=>v+'%';o.plugins.tooltip.callbacks.label=c=>`${c.dataset.label}: ${c.parsed.y==null?'–':c.parsed.y.toFixed(1)+'%'}`;return o}
+
+/* Matriz por bloques (Solución / Ofrecimiento / Conexión / Críticos) con columnas dinámicas */
+function blocksMatrix(rs,colFn,colKeys,colLbl,opts={}){
+  const groups=groupBy(rs,colFn);
+  const cols=[{k:'key',h:opts.rowH||'Indicador',f:'t'}].concat(colKeys.map((k,i)=>({k:'c'+i,h:colLbl?colLbl(k):k,f:'p',q:1}))).concat([{k:'tt',h:'Total',f:'p',q:1}]);
+  const rows=[];
+  const line=(label,fn,cls,f)=>{const r={key:label,_cls:cls||''};colKeys.forEach((k,i)=>{const g=groups.get(k)||[];r['c'+i]=g.length?fn(g):null});r.tt=rs.length?fn(rs):null;rows.push(r);return r};
+  line('Nota Calidad',g=>mean(g,r=>r.nota),'grp');
+  const nr=line('# Evaluaciones',g=>g.length,'');
+  for(const b of BLOCKS){line(b.h,g=>mean(g,r=>r[b.nota]),'grp');for(const it of b.items)line(ITEM_LBL[it],g=>itemAvg(g,it),'ind')._item=it}
+  // Fila de conteo y críticos sin semáforo de %
+  const t=table(cols,rows,{onRow:r=>itemModal(rs,r._item),canRow:r=>!!r._item});
+  // Ajustar formato de la fila de conteo
+  t.querySelectorAll('tbody tr')[1].querySelectorAll('td').forEach((td,i)=>{if(i>0){td.style.background='';const v=i<=colKeys.length?nr['c'+(i-1)]:nr.tt;td.textContent=v==null?'–':v.toLocaleString('es-PE')}});
+  const crit=[{k:'key',h:'Aspectos críticos (cantidad)',f:'t'}].concat(colKeys.map((k,i)=>({k:'c'+i,h:colLbl?colLbl(k):k,f:'i',seq:1}))).concat([{k:'tt',h:'Total',f:'i'}]);
+  const crows=CRIT.map((lbl,j)=>{const r={key:lbl,_j:j};colKeys.forEach((k,i)=>{r['c'+i]=sum(groups.get(k)||[],x=>x.c[j])});r.tt=sum(rs,x=>x.c[j]);return r});
+  const ct=table(crit,crows,{onRow:r=>critModal(rs,r._j)});
+  const box=el('div',{},t,el('div',{style:'height:12px'}),ct);
+  box.csv=()=>{const a=t.csv();a[2]=a[2];return a.concat([[]]).concat(ct.csv())};
+  return box;
+}
+
+/* ============ Vistas ============ */
+const VIEWS=[
+ ['carga','Cargar bases'],['resumen','Resumen'],['semanal','Semanal'],['ranking','Ranking asesores'],['motivo','Motivo de llamada'],
+ ['pauta','Pauta'],['fcr','FCR'],['ofrecim','Ofrecimiento'],['pareto','Pareto'],['mp','Aspectos críticos']];
+
+function renderNav(){
+  const n=$('#nav');n.replaceChildren(...VIEWS.map(([k,l])=>el('button',{class:VIEW===k?'on':'',onclick:()=>{VIEW=k;renderNav();render()}},l)));
+}
+function render(){
+  CHARTS.forEach(c=>c.destroy());CHARTS=[];
+  const m=$('#main');m.replaceChildren();
+  $('#filters').hidden=!DATA||VIEW==='carga';
+  if(VIEW==='carga')return m.append(viewCarga());
+  if(!DATA)return m.append(el('div',{class:'empty'},'Aún no hay datos. Ve a ',el('a',{href:'#',onclick:e=>{e.preventDefault();VIEW='carga';renderNav();render()}},'Cargar bases'),' y sube los dos archivos.'));
+  const rs=rowsF();
+  if(!rs.length)return m.append(el('div',{class:'empty'},'Ningún registro coincide con los filtros seleccionados.'));
+  m.append(V[VIEW](rs));
+}
+
+const V={};
+const segCtl=(view,key,opts,def)=>{const cur=V[view][key]||def;return [cur,el('div',{class:'seg'},...opts.map(([k,l])=>el('button',{class:cur===k?'on':'',onclick:()=>{V[view][key]=k;render()}},l)))]};
+const SUPDR=rs=>({onRow:r=>supModal(rs,r.key),canRow:r=>r._cls!=='grp'});
+V.resumen=rs=>{
+  const a=agg(rs),f=fcrPct(rs),crit=sum(rs,r=>r.c.reduce((x,y)=>x+y,0));
+  const kp=el('div',{class:'kpis'},
+    kpi('Evaluaciones',fmt(a.n,'i'),`${new Set(rs.map(r=>r.agente)).size} asesores`),
+    kpiNota(rs,'Total filtrado',`Meta ${TH('A')[1]}% · umbral ${TH('A')[0]}% · clic: ver motivo`),
+    ...[['sol','Solución'],['ofr','Ofrecimiento'],['con','Conexión']].map(([b,l])=>kpiClick(kpi(l+' ›',fmt(a[b],'p'),'clic: qué ítems restan'),()=>notaModal(rs,'Total filtrado',b),'Ver qué ítems de '+l+' restan nota')),
+    kpi('FCR',fmt(f,'p'),`${rs.filter(r=>r.fcr==='No').length} sin FCR`),
+    kpi('Aspectos críticos',fmt(crit,'i'),`${rs.filter(r=>r.c.some(x=>x)).length} evas con al menos 1`));
+  const days=sortKeys(new Set(rs.map(r=>r.fecha).filter(Boolean)));
+  const bd=groupBy(rs,r=>r.fecha);
+  const s1=css('--s1'),mut=css('--muted');
+  const line=chartBox({type:'line',data:{labels:days.map(fmtDate),datasets:[
+    {label:'Nota Calidad',data:days.map(d=>mean(bd.get(d),r=>r.nota)),borderColor:s1,backgroundColor:s1,borderWidth:2,pointRadius:3,tension:.25},
+    {label:`Meta ${meta()}%`,data:days.map(()=>meta()),borderColor:mut,borderDash:[4,4],borderWidth:1.5,pointRadius:0}]},
+    options:pctAxis(baseOpts(),50)});
+  const semSup=[];for(const [s,g] of [...groupBy(rs,r=>r.semana)].sort((a,b)=>a[0].localeCompare(b[0],'es',{numeric:true}))){semSup.push(Object.assign({key:s,_cls:'grp'},agg(g)));for(const x of groupRows(g,r=>r.sup))semSup.push(Object.assign(x,{_cls:'ind'}))}
+  return el('div',{},kp,el('div',{class:'grid'},
+    card('Nota de calidad diaria','Promedio de la nota final por fecha de atención (detalle por día en la pestaña Pauta)',line),
+    markedCard(V.resumen,'dim','Notas',[
+      {k:'sup',l:'Supervisor',sub:'Clic en un supervisor para ver sus asesores',cols:[KEYCOL('Supervisor'),...NOTAS_A],rows:()=>withTotal(groupRows(rs,r=>r.sup),rs),opts:SUPDR(rs)},
+      {k:'semsup',l:'Semana › Supervisor',sub:'Clic en un supervisor para ver sus asesores',cols:[KEYCOL('Semana / Supervisor'),...NOTAS_A],rows:()=>withTotal(semSup,rs),opts:SUPDR(rs)},
+      {k:'antig',l:'Antigüedad',cols:[KEYCOL('Antigüedad'),...NOTAS_COLS],rows:()=>withTotal(groupRows(rs,r=>r.antig,'antig'),rs)},
+      {k:'tges',l:'T. Gestión',cols:[KEYCOL('T. Gestión'),...NOTAS_COLS],rows:()=>withTotal(groupRows(rs,r=>r.tges),rs)}])));
+};
+/* Una sola tarjeta con marcadores para cambiar de vista (reemplaza varias tablas del mismo tipo).
+   store: objeto donde se recuerda el marcador elegido (V.<vista> en pestañas, MS en modales).
+   defs: [{k,l,sub,tools, cols+rows | make:()=>({cols,rows,opts}) | body:()=>elemento}] */
+const MS={};
+function markedCard(store,key,title,defs,extra){
+  const build=()=>{
+    const cur=defs.find(d=>d.k===store[key])||defs[0];
+    const marks=el('div',{class:'marks'},...defs.map(d=>el('button',{class:d===cur?'on':'',onclick:()=>{store[key]=d.k;c.replaceWith(build())}},d.l)));
+    let content,tools=[];
+    if(cur.body){content=cur.body()}
+    else{const m=cur.make?cur.make():{cols:cur.cols,rows:typeof cur.rows==='function'?cur.rows():cur.rows,opts:cur.opts};content=table(m.cols,m.rows,m.opts||{});if(content.nRows>5)tools.push(searchBox(content))}
+    tools=tools.concat(cur.tools?[].concat(cur.tools):[]).concat(extra||[]);
+    const c=card(`${title} · ${cur.l}`,cur.sub||'',el('div',{},marks,content),{tools,csv:content.csv});
+    return c;
+  };
+  return build();
+}
+function crossNota(rs,rowFn,colFn,rk,ck,rowH,valFn){
+  valFn=valFn||(g=>mean(g,r=>r.nota));
+  const rows=sortKeys(new Set(rs.map(rowFn)),rk),cols=sortKeys(new Set(rs.map(colFn)),ck);
+  const m=groupBy(rs,r=>rowFn(r)+'\u0001'+colFn(r));
+  const cdef=[{k:'key',h:rowH,f:'t'}].concat(cols.map((c,i)=>({k:'c'+i,h:String(c),f:'p',q:1}))).concat([{k:'tt',h:'Total',f:'p',q:1}]);
+  const data=rows.map(rv=>{const o={key:rk==='num'?String(rv).padStart(2,'0')+':00':rv,_raw:rv};cols.forEach((c,i)=>{const g=m.get(rv+'\u0001'+c);o['c'+i]=g?valFn(g):null});o.tt=valFn(rs.filter(r=>rowFn(r)===rv));return o});
+  const tot={key:'Total',_cls:'tot',tt:valFn(rs)};cols.forEach((c,i)=>{tot['c'+i]=valFn(rs.filter(r=>colFn(r)===c))});
+  return {cols:cdef,rows:data.concat([tot]),colKeys:cols};
+}
+V.semanal=rs=>{
+  const h=rs.filter(r=>r.hora!=null);
+  const sub='Promedio de la nota final · semáforo «Resto»';
+  return el('div',{class:'grid full'},markedCard(V.semanal,'dim','Nota',[
+    {k:'dia',l:'Día × Semana',sub,make:()=>crossNota(rs,r=>r.dia,r=>r.semana,'dia','','Día')},
+    {k:'hora',l:'Hora × Semana',sub,make:()=>crossNota(h,r=>r.hora,r=>r.semana,'num','','Hora')},
+    {k:'hd',l:'Hora × Día',sub,make:()=>crossNota(h,r=>r.hora,r=>r.dia,'num','dia','Hora')}]));
+};
+V.ranking=rs=>{
+  const ag=[];for(const [k,g] of groupBy(rs,r=>r.agente)){ag.push(Object.assign({key:k,sup:g[0].sup,antig:g[0].antig,tges:g[0].tges},agg(g),{fcr:fcrPct(g),crit:sum(g,r=>r.c.reduce((x,y)=>x+y,0))}))}
+  ag.sort((a,b)=>(b.nota??-1)-(a.nota??-1));
+  const search=el('input',{class:'in',placeholder:'Buscar asesor o supervisor…',style:'width:200px'});
+  const cols=[{k:'key',h:'Asesor',f:'t'},{k:'sup',h:'Supervisor',f:'t'},{k:'antig',h:'Antigüedad',f:'t'},{k:'tges',h:'T. Gestión',f:'t'},...NOTAS_A,{k:'fcr',h:'FCR',f:'p'},{k:'crit',h:'Críticos',f:'i'}];
+  const holder=el('div');
+  const tot=Object.assign({key:'Total',_cls:'tot'},agg(rs),{fcr:fcrPct(rs),crit:sum(rs,r=>r.c.reduce((x,y)=>x+y,0))});
+  const draw=()=>{const q=norm(search.value);holder.replaceChildren(table(cols,ag.filter(a=>!q||norm(a.key+' '+a.sup).includes(q)).concat([tot]),{sortable:1,onRow:r=>agentModal(rs,r.key)}))};
+  search.oninput=draw;draw();
+  return el('div',{class:'grid full'},card('Ranking de asesores','Clic en un encabezado para ordenar · clic en un asesor para ver su detalle',holder,{tools:search,csv:()=>table(cols,ag).csv()}));
+};
+V.motivo=rs=>{
+  const [met,segM]=segCtl('motivo','met',[['nota','Nota'],['q','Cantidad']],'nota');
+  const cross=eje=>{
+    const colFn=eje==='dia'?r=>r.fecha:r=>r.semana;
+    const x=crossNota(rs.filter(r=>colFn(r)),r=>r.mot1,colFn,'','','Motivo de llamada',met==='q'?g=>g.length:undefined);
+    x.cols.forEach((c,i)=>{if(eje==='dia'&&i>0&&c.k!=='tt')c.h=fmtDate(x.colKeys[i-1]);if(c.q)c.q='A';if(met==='q'&&c.f==='p'){c.f='i';c.q=0;c.seq=c.k!=='tt'}});
+    const body=x.rows.filter(r=>r._cls!=='tot').sort((a,b)=>b.tt-a.tt);x.rows=body.concat(x.rows.filter(r=>r._cls==='tot'));
+    x.opts={onRow:r=>submotivoModal(rs,r._raw)};return x;
+  };
+  const sub=(met==='q'?'Cantidad de evaluaciones':'Promedio de la nota final')+' · clic en un motivo para ver su detalle';
+  return el('div',{class:'grid full'},markedCard(V.motivo,'dim','Motivo de llamada',[
+    {k:'notas',l:'Notas',sub:'Clic en un motivo para ver su detalle por submotivo y supervisor',cols:[KEYCOL('Motivo de consulta'),...NOTAS_A],rows:()=>withTotal(groupRows(rs,r=>r.mot1).sort((a,b)=>b.n-a.n),rs),opts:{onRow:r=>submotivoModal(rs,r.key)}},
+    {k:'semana',l:'Por semana',sub,tools:segM,make:()=>cross('semana')},
+    {k:'dia',l:'Por día',sub,tools:segM,make:()=>cross('dia')}]));
+};
+V.pauta=rs=>{
+  const sub='Promedio de cumplimiento por ítem · clic en un ítem o aspecto crítico para ver su detalle';
+  const comp=()=>{
+    const all=rowsF('tipo');const tipos=sortKeys(new Set(all.map(r=>r.tipo)));
+    const parts=tipos.map(t=>{const g=all.filter(r=>r.tipo===t);return {t,g,b:blocksMatrix(g,r=>r.semana,sortKeys(new Set(g.map(r=>r.semana))))}});
+    const box=el('div',{class:'grid'},...parts.map(p=>el('div',{style:'min-width:0'},el('h4',{style:'margin:0 0 6px'},`Tipo de encuesta: ${p.t} · ${p.g.length} evaluaciones`),p.b)));
+    box.csv=()=>parts.flatMap(p=>[[p.t]].concat(p.b.csv()).concat([[]]));return box;
+  };
+  return el('div',{class:'grid full'},markedCard(V.pauta,'mode','Atributos de la pauta',[
+    {k:'semana',l:'Por semana',sub,body:()=>blocksMatrix(rs,r=>r.semana,sortKeys(new Set(rs.map(r=>r.semana))))},
+    {k:'dia',l:'Por día',sub,body:()=>blocksMatrix(rs,r=>r.fecha,sortKeys(new Set(rs.map(r=>r.fecha).filter(Boolean))),fmtDate)},
+    {k:'comp',l:'Interno vs Claro',sub:sub+' · aquí no aplica el filtro «Tipo encuesta»',body:comp}]));
+};
+function crossCount(rs,rowFn,colFn,rk,ck,rowH,mode){ // mode: count|row|col
+  const rows=sortKeys(new Set(rs.map(rowFn)),rk),cols=sortKeys(new Set(rs.map(colFn)),ck);
+  const m=groupBy(rs,r=>rowFn(r)+'\u0001'+colFn(r));
+  const rt=k=>rs.filter(r=>rowFn(r)===k).length,ct=k=>rs.filter(r=>colFn(r)===k).length;
+  const val=(n,rk,ckk)=>mode==='row'?(rt(rk)?100*n/rt(rk):null):mode==='col'?(ct(ckk)?100*n/ct(ckk):null):n;
+  const f=mode==='count'?'i':'p';
+  const cdef=[{k:'key',h:rowH,f:'t'}].concat(cols.map((c,i)=>({k:'c'+i,h:c||'(vacío)',f,seq:1}))).concat([{k:'tt',h:'Total',f:mode==='row'?'p':'i'}]);
+  const data=rows.map(r=>{const o={key:r||'(vacío)'};cols.forEach((c,i)=>{o['c'+i]=val((m.get(r+'\u0001'+c)||[]).length,r,c)});o.tt=mode==='row'?100:mode==='col'?100*rt(r)/rs.length:rt(r);return o});
+  const tot={key:'Total',_cls:'tot'};cols.forEach((c,i)=>{tot['c'+i]=mode==='row'?100*ct(c)/rs.length:mode==='col'?100:ct(c)});tot.tt=mode==='count'?rs.length:100;
+  if(mode==='col')cdef[cdef.length-1].f='p';
+  return {cols:cdef,rows:data.concat([tot]),max:mode==='count'?null:100};
+}
+V.fcr=rs=>{
+  const v=rs.filter(r=>r.fcr);const no=v.filter(r=>r.fcr==='No');
+  const fcrCols=[{k:'key',h:'',f:'t'},{k:'n',h:'Evas',f:'i',bar:1},{k:'si',h:'FCR Sí',f:'i'},{k:'no',h:'FCR No',f:'i'},{k:'p',h:'% FCR',f:'p'}];
+  const fg=(k,fn,h,kind)=>({k,l:h,cols:[{...fcrCols[0],h},...fcrCols.slice(1)],rows:()=>{const rows=sortKeys(new Set(v.map(fn)),kind).map(x=>{const g=v.filter(r=>fn(r)===x);return {key:x,n:g.length,si:g.filter(r=>r.fcr==='Sí').length,no:g.filter(r=>r.fcr==='No').length,p:fcrPct(g)}});rows.push({key:'Total',_cls:'tot',n:v.length,si:v.length-no.length,no:no.length,p:fcrPct(v)});return rows}});
+  const motMap=groupBy(no,r=>r.nfMot||'(vacío)');const mk=[...motMap.keys()].sort((a,b)=>motMap.get(b).length-motMap.get(a).length);
+  const resp=mk.map(k=>({key:k,n:motMap.get(k).length,p:100*motMap.get(k).length/(no.length||1)}));resp.push({key:'Total',_cls:'tot',n:no.length,p:100});
+  const [cm,segC]=segCtl('fcr','cm',[['row','% fila'],['count','Cantidad']],'row');
+  const xo=cm==='row'?{seqMax:100}:{};
+  const csub=cm==='row'?'% de la fila':'Cantidad de evaluaciones sin FCR';
+  return el('div',{},el('div',{class:'kpis'},
+     kpi('FCR',fmt(fcrPct(v),'p'),`${v.length} evaluaciones · ${no.length} sin FCR`),
+     ...resp.filter(r=>!r._cls).map(r=>el('div',{class:'kpi',style:'cursor:pointer',title:'Ver detalle',onclick:()=>nfcrModal(no,r.key)},el('div',{class:'l'},'No FCR · '+r.key+' ›'),el('div',{class:'v'},fmt(r.n,'i')),el('div',{class:'d'},fmt(r.p,'p')+' del No FCR')))),
+   el('div',{class:'grid'},
+    markedCard(V.fcr,'dim','FCR',[fg('sup',r=>r.sup,'Supervisor'),fg('tges',r=>r.tges,'T. Gestión'),fg('antig',r=>r.antig,'Antigüedad','antig'),fg('sem',r=>r.semana,'Semana')]),
+    markedCard(V.fcr,'nfdim','No FCR',[
+      {k:'resp',l:'Responsable',sub:'Distribución del responsable (FCR = No) · clic para ver el detalle',cols:[KEYCOL('Responsable'),{k:'n',h:'Cant',f:'i',bar:1},{k:'p',h:'%',f:'p'}],rows:resp,opts:{onRow:r=>nfcrModal(no,r.key)}},
+      {k:'sup',l:'Supervisor × Responsable',sub:csub,tools:segC,make:()=>({...crossCount(no,r=>r.sup,r=>r.nfMot,'','','Supervisor',cm),opts:xo})},
+      {k:'antig',l:'Antigüedad × Responsable',sub:csub,tools:segC,make:()=>({...crossCount(no,r=>r.antig,r=>r.nfMot,'antig','','Antigüedad',cm),opts:xo})}])));
+};
+/* ============ Modales de detalle ============ */
+const MSTACK=[];
+function openModal(title,body,push){
+  const d=$('#modal');
+  if(!push)MSTACK.length=0;
+  MSTACK.push({title,body});
+  showTop();if(!d.open)d.showModal();
+}
+function showTop(){const t=MSTACK[MSTACK.length-1];$('#mTitle').textContent=t.title;$('#mBody').replaceChildren(t.body);$('#mBack').hidden=MSTACK.length<2;$('#mBody').scrollTop=0}
+$('#mClose').onclick=()=>$('#modal').close();
+$('#mBack').onclick=()=>{MSTACK.pop();showTop()};
+$('#modal').addEventListener('close',()=>{MSTACK.length=0;$('#mBody').replaceChildren()});
+$('#modal').addEventListener('click',e=>{if(e.target.id==='modal')e.target.close()});
+const inModal=()=>$('#modal').open;
+const kpi=(l,v,d)=>el('div',{class:'kpi'},el('div',{class:'l'},l),el('div',{class:'v',html:v}),el('div',{class:'d'},d||''));
+/* ============ ¿Por qué esta nota? ============
+   Nota Calidad = 63% Solución + 20% Ofrecimiento + 17% Conexión (verificado con la data, error < 0.01).
+   Pesos de cada ítem dentro de su bloque: Solución en puntos sobre 63 (exactos); Conexión estimados de la data. */
+const BLK=[{b:'sol',h:'Solución',w:.63,items:{'1.1':4,'1.2':9,'1.3':5,'1.4':10,'1.5':10,'1.6':10,'1.7':5,'1.8':10}},
+           {b:'ofr',h:'Ofrecimiento',w:.20,items:{'2':1}},
+           {b:'con',h:'Conexión',w:.17,items:{'3.1':6.7,'3.2':11.8,'3.3':5.6,'3.4':17.3,'3.5':41.2,'3.6':17.5}}];
+function lossBreakdown(rs){
+  const N=rs.length||1,blocks=[],items=[];
+  for(const B of BLK){
+    const nb=mean(rs,r=>r[B.b]),loss=nb==null?0:B.w*(100-nb);
+    const raw={};for(const k in B.items)raw[k]=0;
+    for(const r of rs){const ap=Object.keys(B.items).filter(k=>r.s[k]!=null);const den=ap.reduce((a,k)=>a+B.items[k],0);if(!den)continue;for(const k of ap)if(r.s[k]===0)raw[k]+=B.items[k]/den}
+    const tr=Object.values(raw).reduce((a,b)=>a+b,0);
+    let assigned=0;
+    for(const k in B.items){const fails=rs.filter(r=>r.s[k]===0).length,apl=rs.filter(r=>r.s[k]!=null).length;const l=tr?loss*raw[k]/tr:0;assigned+=l;
+      items.push({key:ITEM_LBL[k],_item:k,blk:B.h,fails,pf:apl?100*fails/apl:null,loss:l})}
+    if(loss-assigned>0.05)items.push({key:'Sub-ítems / otros de '+B.h,blk:B.h,fails:null,pf:null,loss:loss-assigned,_drill:false});
+    blocks.push({key:B.h,peso:B.w*100,nota:nb,loss,_b:B.b});
+  }
+  const total=blocks.reduce((a,b)=>a+b.loss,0);
+  items.forEach(i=>i.share=total?100*i.loss/total:0);blocks.forEach(b=>b.share=total?100*b.loss/total:0);
+  items.sort((a,b)=>b.loss-a.loss);
+  return {blocks,items,total};
+}
+function notaModal(rs,scope,focus){
+  if(!rs.length)return;
+  const a=agg(rs),L=lossBreakdown(rs),[u]=TH('A');
+  const low=rs.filter(r=>r.nota!=null&&r.nota<u);
+  const lb=focus?L.blocks.find(b=>b._b===focus):null;
+  const top=L.items.filter(i=>i._item&&(!lb||i.blk===lb.key)).slice(0,3);
+  const icols=[KEYCOL('Ítem'),{k:'blk',h:'Bloque',f:'t'},{k:'fails',h:'Evas en "No"',f:'i'},{k:'pf',h:'% incumple',f:'p'},{k:'loss',h:'Pts de nota perdidos',f:'n1',bar:1},{k:'share',h:'% de la pérdida',f:'p'}];
+  const irows=()=>{const r=L.items.filter(i=>!focus||i.blk===BLK.find(b=>b.b===focus).h);r.push({key:'Total',_cls:'tot',loss:r.reduce((x,y)=>x+y.loss,0),share:r.reduce((x,y)=>x+y.share,0)});return r};
+  const mot=()=>{const N=rs.length;const rows=[...groupBy(rs,r=>r.mot1)].map(([k,g])=>{const n=mean(g,r=>r.nota);return {key:k,n:g.length,nota:n,loss:n==null?0:(100-n)*g.length/N}}).sort((x,y)=>y.loss-x.loss);const t=rows.reduce((x,y)=>x+y.loss,0);rows.forEach(r=>r.share=t?100*r.loss/t:0);rows.push({key:'Total',_cls:'tot',n:N,nota:a.nota,loss:t,share:100});return rows};
+  const evaLow=()=>low.slice().sort((x,y)=>x.nota-y.nota).map(r=>Object.assign(evaRows([r])[0],{fallas:ITEMS.filter(i=>!/^\d\.\d\.\d/.test(i[0])&&r.s[i[0]]===0).map(i=>i[0]).join(', '),crit:r.c.reduce((x,y)=>x+y,0)}));
+  // Resumen ordenado del motivo: 1) bloques, 2) ítems, 3) motivos de llamada
+  const sec=(n,t,...kids)=>el('div',{class:'wsec'},el('div',{class:'wt'},el('span',{class:'wn'},n),t),...kids);
+  const line=(name,detail,pts,share,onclick)=>el('div',{class:'wl'+(onclick?' click':''),onclick:onclick||null,title:onclick?'Ver detalle':null},
+    el('div',{class:'wk'},el('span',{},name),el('b',{},'−'+pts.toFixed(1)+' pts')),
+    el('div',{class:'wbar'},el('i',{style:`width:${Math.min(100,share).toFixed(1)}%`})),
+    el('div',{class:'wd'},detail));
+  const motTop=mot().filter(r=>!r._cls).slice(0,3);
+  const why=el('div',{class:'card why'},
+    el('div',{class:'whead'},
+      el('div',{},el('div',{class:'l'},scope),el('div',{class:'big',html:`${fmt(a.nota,'p')}${icon(a.nota)}`})),
+      el('div',{class:'wsum'},'Pierde ',el('b',{},L.total.toFixed(1)+' pts'),' de 100 en ',el('b',{},a.n+' evaluaciones'),
+        el('br'),el('span',{class:'note'},`${low.length} evaluaciones (${fmt(100*low.length/rs.length,'p')}) quedan bajo ${u}%`))),
+    lb?el('div',{class:'wfocus'},`Viniste desde ${lb.key} (${fmt(lb.nota,'p')}): ese bloque resta ${lb.loss.toFixed(1)} pts a la nota final.`):null,
+    el('div',{class:'wgrid'},
+      sec('1','¿En qué bloque se pierde?',...L.blocks.slice().sort((x,y)=>y.loss-x.loss).map(b=>line(b.key,`Nota del bloque ${fmt(b.nota,'p')} · pesa ${b.peso.toFixed(0)}% · ${fmt(b.share,'p')} de la pérdida`,b.loss,b.share))),
+      sec('2',lb?`¿Qué ítems de ${lb.key} restan más?`:'¿Qué ítems restan más?',...top.map(t=>line(t.key,`Falla en ${fmt(t.pf,'p')} de las evaluaciones (${t.fails}) · ${fmt(t.share,'p')} de la pérdida`,t.loss,t.share,()=>itemModal(rs,t._item)))),
+      sec('3','¿Qué motivos de llamada pesan más?',...motTop.map(m=>line(m.key,`${m.n} evaluaciones · nota ${fmt(m.nota,'p')} · ${fmt(m.share,'p')} de la pérdida`,m.loss,m.share,()=>submotivoModal(rs,m.key))))));
+  const body=el('div',{},
+    why,
+    markedCard(MS,focus?'notaF':'nota','Motivo de la nota',[
+      {k:'items',l:'Ítems que restan',sub:(focus?'Solo ítems de '+BLK.find(b=>b.b===focus).h+' · ':'')+'Puntos de nota final que se pierden por cada ítem · clic en un ítem para ver quién falla y por qué',cols:icols,rows:irows,opts:{onRow:r=>itemModal(rs,r._item),canRow:r=>!!r._item}},
+      {k:'blk',l:'Por bloque',sub:'Nota = 63% Solución + 20% Ofrecimiento + 17% Conexión',cols:[KEYCOL('Bloque'),{k:'peso',h:'Peso',f:'p'},{k:'nota',h:'Nota del bloque',f:'p'},{k:'loss',h:'Pts de nota perdidos',f:'n1',bar:1},{k:'share',h:'% de la pérdida',f:'p'}],rows:()=>L.blocks.concat([{key:'Total',_cls:'tot',loss:L.total,share:100}])},
+      {k:'mot',l:'Motivo de consulta',sub:'Cuánto aporta cada motivo de llamada a la pérdida de nota (según su volumen y su nota) · clic para ver el detalle',cols:[KEYCOL('Motivo de consulta'),{k:'n',h:'# Evas',f:'i'},{k:'nota',h:'Nota',f:'p',icon:'A'},{k:'loss',h:'Pts de nota perdidos',f:'n1',bar:1},{k:'share',h:'% de la pérdida',f:'p'}],rows:mot,opts:{onRow:r=>submotivoModal(rs,r.key)}},
+      {k:'low',l:`Evaluaciones bajo ${u}%`,sub:'Ordenadas de menor a mayor nota · «Ítems en No» lista los ítems incumplidos',cols:[EVA_COLS[0],EVA_COLS[1],EVA_COLS[3],EVA_COLS[6],{k:'fallas',h:'Ítems en No',f:'t'},{k:'crit',h:'Críticos',f:'i'},EVA_COLS[8]],rows:evaLow}]));
+  openModal('¿Por qué esta nota? · '+scope,body,inModal());
+}
+const kpiClick=(node,fn,tip)=>{node.classList.add('kclick');node.title=tip||'Ver el motivo de la nota';node.onclick=fn;return node};
+const kpiNota=(rs,scope,d)=>kpiClick(kpi('Nota Calidad ›',fmt(mean(rs,r=>r.nota),'p')+icon(mean(rs,r=>r.nota)),d||'clic para ver el motivo'),()=>notaModal(rs,scope));
+
+const CNT=[{k:'n',h:'Cant',f:'i',bar:1},{k:'p',h:'%',f:'p'}];
+function countBy(g,fn,kind){const m=groupBy(g,fn);const keys=kind?sortKeys(m.keys(),kind==='x'?'':kind):[...m.keys()].sort((a,b)=>m.get(b).length-m.get(a).length);const rows=keys.map(k=>({key:k||'(vacío)',n:m.get(k).length,p:100*m.get(k).length/(g.length||1)}));rows.push({key:'Total',_cls:'tot',n:g.length,p:100});return rows}
+function supAgentRows(g){const out=[];for(const [s,x] of [...groupBy(g,r=>r.sup)].sort((a,b)=>b[1].length-a[1].length)){out.push({key:s,n:x.length,p:100*x.length/g.length,_cls:'grp'});const m=groupBy(x,r=>r.agente);for(const k of [...m.keys()].sort((a,b)=>m.get(b).length-m.get(a).length))out.push({key:k,n:m.get(k).length,p:100*m.get(k).length/g.length,_cls:'ind'})}out.push({key:'Total',_cls:'tot',n:g.length,p:100});return out}
+const EVA_COLS=[{k:'fecha',h:'Fecha',f:'t'},{k:'agente',h:'Asesor',f:'t'},{k:'sup',h:'Supervisor',f:'t'},{k:'mot1',h:'Motivo de consulta',f:'t'},{k:'sub1',h:'Submotivo',f:'t'},{k:'tipo',h:'Tipo',f:'t'},{k:'nota',h:'Nota',f:'p',icon:'A'},{k:'fcr',h:'FCR',f:'t'},{k:'idc',h:'ID conversación',f:'t'}];
+const evaRows=g=>g.slice().sort((a,b)=>b.fecha.localeCompare(a.fecha)).map(r=>Object.assign({},r,{fecha:fmtDate(r.fecha)+(r.hora!=null?' '+String(r.hora).padStart(2,'0')+'h':'')}));
+
+/* Detalle de un ítem de la pauta (equivale a la hoja «1.5», para cualquier ítem) */
+function itemModal(rs,k){
+  const g=rs.filter(r=>r.s[k]===0),cum=itemAvg(rs,k);
+  const body=el('div',{},el('div',{class:'kpis'},kpi('Evaluaciones con "No"',fmt(g.length,'i'),fmt(rs.length?100*g.length/rs.length:null,'p')+' del total'),kpi('Cumplimiento del ítem',fmt(cum,'p'),`${rs.filter(r=>r.s[k]!=null).length} evaluaciones aplican`)));
+  if(!g.length){body.append(el('div',{class:'empty'},'No hay evaluaciones con este ítem incumplido en el filtro actual.'));return openModal(ITEM_LBL[k],body,inModal())}
+  const defs=[
+    {k:'sup',l:'Supervisor › Asesor',sub:'Clic en un asesor para ver su detalle',cols:[KEYCOL('Supervisor / Asesor'),...CNT],rows:()=>supAgentRows(g),opts:{onRow:r=>agentModal(rs,r.key),canRow:r=>r._cls==='ind'}},
+    {k:'antig',l:'Antigüedad',cols:[KEYCOL('Antigüedad'),...CNT],rows:()=>countBy(g,r=>r.antig,'antig')},
+    {k:'sem',l:'Semana',cols:[KEYCOL('Semana'),...CNT],rows:()=>countBy(g,r=>r.semana,'x')},
+    {k:'mot',l:'Motivo de consulta',cols:[KEYCOL('Motivo de consulta'),...CNT],rows:()=>countBy(g,r=>r.mot1)}];
+  const mf=k==='1.5'?'mot15':k==='1.4'?'mot14':null;
+  if(mf)defs.splice(1,0,{k:'inc',l:'Motivo del incumplimiento',sub:'Una evaluación puede tener varios motivos',cols:[KEYCOL('Motivo'),{k:'n',h:'Cant',f:'i',bar:1},{k:'p',h:'% evas',f:'p'}],rows:()=>{const m=groupBy(g.flatMap(r=>(r[mf]||'(sin detalle)').split(/\s*,\s*/).map(x=>({x}))),o=>o.x);return [...m.keys()].sort((a,b)=>m.get(b).length-m.get(a).length).map(x=>({key:x,n:m.get(x).length,p:100*m.get(x).length/g.length}))}});
+  defs.push({k:'evas',l:'Evaluaciones',sub:'Evaluaciones con el ítem incumplido',cols:EVA_COLS,rows:()=>evaRows(g)});
+  body.append(markedCard(MS,'item','Incumplimientos',defs));
+  openModal(ITEM_LBL[k],body,inModal());
+}
+/* Detalle de un aspecto crítico */
+function critModal(rs,j){
+  const g=rs.filter(r=>r.c[j]);
+  const body=el('div',{},el('div',{class:'kpis'},kpi('Evaluaciones',fmt(g.length,'i'),fmt(rs.length?100*g.length/rs.length:null,'p')+' del total')));
+  if(g.length)body.append(markedCard(MS,'crit','Aspecto crítico',[
+    {k:'sup',l:'Supervisor › Asesor',sub:'Clic en un asesor para ver su detalle',cols:[KEYCOL('Supervisor / Asesor'),...CNT],rows:()=>supAgentRows(g),opts:{onRow:r=>agentModal(rs,r.key),canRow:r=>r._cls==='ind'}},
+    {k:'mot',l:'Motivo de consulta',cols:[KEYCOL('Motivo de consulta'),...CNT],rows:()=>countBy(g,r=>r.mot1)},
+    {k:'evas',l:'Evaluaciones',cols:EVA_COLS,rows:()=>evaRows(g)}]));
+  else body.append(el('div',{class:'empty'},'Ninguna evaluación tiene este aspecto crítico en el filtro actual.'));
+  openModal('Aspecto crítico: '+CRIT[j],body,inModal());
+}
+/* Detalle de un motivo de llamada (equivale a la hoja «Sub Motivo Inconv Servicio») */
+function submotivoModal(rs,mot){
+  const g=rs.filter(r=>r.mot1===mot);if(!g.length)return;
+  const body=el('div',{},el('div',{class:'kpis'},kpi('Evaluaciones',fmt(g.length,'i')),kpiNota(g,'Motivo '+mot),kpi('FCR',fmt(fcrPct(g),'p'))),
+    markedCard(MS,'mot','Motivo',[
+      {k:'sub',l:'Notas por submotivo',cols:[KEYCOL('Submotivo'),...NOTAS_A],rows:()=>withTotal(groupRows(g,r=>r.sub1).sort((a,b)=>b.n-a.n),g)},
+      {k:'attr',l:'Atributos por submotivo',sub:'Clic en un ítem para ver su detalle',body:()=>blocksMatrix(g,r=>r.sub1,sortKeys(new Set(g.map(r=>r.sub1))))},
+      {k:'sup',l:'Notas por supervisor',sub:'Clic en un supervisor para ver sus asesores',cols:[KEYCOL('Supervisor'),...NOTAS_A],rows:()=>withTotal(groupRows(g,r=>r.sup),g),opts:{onRow:r=>supModal(g,r.key)}},
+      {k:'evas',l:'Evaluaciones',cols:EVA_COLS,rows:()=>evaRows(g)}]));
+  openModal('Motivo: '+mot,body,inModal());
+}
+/* Detalle de No FCR por responsable */
+function nfcrModal(no,mot){
+  const g=no.filter(r=>(r.nfMot||'(vacío)')===mot);if(!g.length)return;
+  const tree=()=>{const t=[];const lvl=(rows,fns,depth)=>{if(!fns.length)return;const m=groupBy(rows,fns[0]);for(const k of [...m.keys()].sort((a,b)=>m.get(b).length-m.get(a).length)){t.push({key:k||'(vacío)',n:m.get(k).length,p:100*m.get(k).length/g.length,_cls:['grp','ind','ind2'][depth]});lvl(m.get(k),fns.slice(1),depth+1)}};
+    lvl(g,[r=>r.mot1,r=>r.nfProc,r=>r.nfDet],0);t.push({key:'Total',_cls:'tot',n:g.length,p:100});return t};
+  const body=el('div',{},el('div',{class:'kpis'},kpi('Evaluaciones sin FCR',fmt(g.length,'i'),fmt(100*g.length/no.length,'p')+' del No FCR')),
+    markedCard(MS,'nfcr','No FCR',[
+      {k:'det',l:'Motivo › Proceso › Detalle',cols:[KEYCOL('Detalle'),...CNT],rows:tree},
+      {k:'sup',l:'Supervisor › Asesor',sub:'Clic en un asesor para ver su detalle',cols:[KEYCOL('Supervisor / Asesor'),...CNT],rows:()=>supAgentRows(g),opts:{onRow:r=>agentModal(rowsF(),r.key),canRow:r=>r._cls==='ind'}},
+      {k:'evas',l:'Evaluaciones',cols:[...EVA_COLS.slice(0,4),{k:'nfProc',h:'Proceso',f:'t'},{k:'nfDet',h:'Detalle',f:'t'},EVA_COLS[8]],rows:()=>evaRows(g)}]));
+  openModal('No FCR · '+mot,body,inModal());
+}
+/* Detalle de un supervisor: sus asesores */
+function supModal(rs,sup){
+  const g=rs.filter(r=>r.sup===sup);if(!g.length)return;
+  const a=agg(g),ag=groupRows(g,r=>r.agente).sort((x,y)=>(y.nota??-1)-(x.nota??-1));
+  const body=el('div',{},el('div',{class:'kpis'},kpi('Evaluaciones',fmt(a.n,'i'),`${ag.length} asesores`),kpiNota(g,'Supervisor '+sup),kpi('FCR',fmt(fcrPct(g),'p'))),
+    markedCard(MS,'sup','Supervisor',[
+      {k:'ag',l:'Asesores',sub:'Clic en un asesor para ver su detalle',cols:[KEYCOL('Asesor'),...NOTAS_A],rows:()=>withTotal(ag,g),opts:{onRow:r=>agentModal(rs,r.key)}},
+      {k:'sem',l:'Por semana',cols:[KEYCOL('Semana'),...NOTAS_A],rows:()=>withTotal(groupRows(g,r=>r.semana),g)},
+      {k:'mot',l:'Por motivo de consulta',cols:[KEYCOL('Motivo de consulta'),...NOTAS_A],rows:()=>withTotal(groupRows(g,r=>r.mot1).sort((x,y)=>y.n-x.n),g)},
+      {k:'evas',l:'Evaluaciones',cols:EVA_COLS,rows:()=>evaRows(g)}]));
+  openModal('Supervisor: '+sup,body,inModal());
+}
+/* Detalle de un asesor: sus evaluaciones */
+function agentModal(rs,ag){
+  const g=rs.filter(r=>r.agente===ag);if(!g.length)return;
+  const a=agg(g),f=g[0];
+  const fails=ITEMS.filter(i=>!/^\d\.\d\.\d/.test(i[0])).map(([k,l])=>({key:l,n:sum(g,r=>r.e[k]),_item:k})).filter(x=>x.n).sort((x,y)=>y.n-x.n).map(x=>Object.assign(x,{p:100*x.n/g.length}));
+  const body=el('div',{},
+    el('div',{class:'note',style:'margin-bottom:10px'},`Código ${f.cod} · Supervisor: ${f.sup} · Antigüedad: ${f.antig} · ${f.tges}${f.horario?' · Horario '+f.horario:''}`),
+    el('div',{class:'kpis'},kpi('Evaluaciones',fmt(a.n,'i')),kpiNota(g,'Asesor '+ag),kpi('Solución',fmt(a.sol,'p')),kpi('Ofrecimiento',fmt(a.ofr,'p')),kpi('Conexión',fmt(a.con,'p')),kpi('FCR',fmt(fcrPct(g),'p')),kpi('Aspectos críticos',fmt(sum(g,r=>r.c.reduce((x,y)=>x+y,0)),'i'))),
+    markedCard(MS,'ag','Asesor',[
+      {k:'evas',l:'Evaluaciones',cols:[EVA_COLS[0],{k:'monitor',h:'Monitor',f:'t'},...EVA_COLS.slice(3,6),{k:'sol',h:'Sol.',f:'p'},{k:'ofr',h:'Ofr.',f:'p'},{k:'con',h:'Con.',f:'p'},EVA_COLS[6],EVA_COLS[7],EVA_COLS[8]],rows:()=>evaRows(g)},
+      {k:'fails',l:'Ítems incumplidos',sub:'Cantidad de evaluaciones con el ítem en "No"',cols:[KEYCOL('Ítem'),{k:'n',h:'Cant',f:'i',bar:1},{k:'p',h:'% evas',f:'p'}],rows:()=>fails.length?fails:[{key:'Sin ítems incumplidos'}]},
+      {k:'sem',l:'Notas por semana',cols:[KEYCOL('Semana'),...NOTAS_A],rows:()=>withTotal(groupRows(g,r=>r.semana),g)}]));
+  openModal('Asesor: '+ag,body,inModal());
+}
+V.ofrecim=rs=>{
+  const m=groupBy(rs,r=>r.ofrRaw||'(vacío)');const keys=sortKeys(m.keys());
+  const dist=keys.map(k=>({key:k,n:m.get(k).length,p:100*m.get(k).length/rs.length}));dist.push({key:'Total',_cls:'tot',n:rs.length,p:100});
+  const two=(fa,fb,kb)=>{const out=[];for(const [a,g] of [...groupBy(rs,fa)].sort((x,y)=>String(x[0]).localeCompare(String(y[0]),'es'))){out.push(Object.assign({key:a||'(vacío)',_cls:'grp'},agg(g)));for(const x of groupRows(g,fb,kb))out.push(Object.assign(x,{_cls:'ind'}))}return withTotal(out,rs)};
+  const a=agg(rs);
+  return el('div',{},el('div',{class:'kpis'},kpi('Nota Ofrecimiento',fmt(a.ofr,'p')),...keys.map(k=>kpi('2.1 Recomendación · '+k,fmt(m.get(k).length,'i'),fmt(100*m.get(k).length/rs.length,'p')+' de las evaluaciones'))),
+    el('div',{class:'grid full'},markedCard(V.ofrecim,'dim','Ofrecimiento',[
+      {k:'dist',l:'Distribución',sub:'2.1 Realiza recomendación',cols:[KEYCOL('Respuesta'),{k:'n',h:'Cantidad',f:'i',bar:1},{k:'p',h:'%',f:'p'}],rows:dist},
+      {k:'sem',l:'Monitor › Semana',cols:[KEYCOL('Monitor / Semana'),...NOTAS_COLS],rows:()=>two(r=>r.monitor,r=>r.semana)},
+      {k:'antig',l:'Monitor › Antigüedad',cols:[KEYCOL('Monitor / Antigüedad'),...NOTAS_COLS],rows:()=>two(r=>r.monitor,r=>r.antig,'antig')}])));
+};
+V.pareto=rs=>{
+  const tot=PARETO_ITEMS.map(k=>({k,n:sum(rs,r=>r.e[k])})).sort((a,b)=>b.n-a.n);
+  const all=tot.reduce((a,b)=>a+b.n,0);let acc=0;
+  const rows=tot.map(t=>{acc+=t.n;return {key:ITEM_LBL[t.k],_item:t.k,n:t.n,p:all?100*t.n/all:0,acc:all?100*acc/all:0}});
+  rows.push({key:'Total',_cls:'tot',n:all,p:100,acc:null});
+  const s1=css('--s1');
+  const chart=()=>chartBox({type:'bar',data:{labels:tot.map(t=>t.k),datasets:[{label:'Errores',data:tot.map(t=>t.n),backgroundColor:tot.map((t,i)=>rows[i].acc<=80||i===0?s1:css('--axis')),borderRadius:4,maxBarThickness:32}]},
+    options:(()=>{const o=baseOpts();o.plugins.legend.display=false;o.plugins.tooltip.callbacks.title=c=>ITEM_LBL[tot[c[0].dataIndex].k];o.plugins.tooltip.callbacks.afterLabel=c=>`Acumulado: ${rows[c.dataIndex].acc.toFixed(1)}%`;o.onClick=(e,els)=>{if(els.length)itemModal(rs,tot[els[0].index].k)};return o})()},300);
+  const agRows=()=>{const ag=[];for(const [s,g] of [...groupBy(rs,r=>r.sup)].sort((a,b)=>a[0].localeCompare(b[0],'es'))){
+    const sr={key:s,_cls:'grp'};tot.forEach(t=>sr[t.k]=sum(g,r=>r.e[t.k]));sr.tt=tot.reduce((a,t)=>a+sr[t.k],0);ag.push(sr);
+    const per=[];for(const [a,x] of groupBy(g,r=>r.agente)){const o={key:a,_cls:'ind'};tot.forEach(t=>o[t.k]=sum(x,r=>r.e[t.k]));o.tt=tot.reduce((q,t)=>q+o[t.k],0);per.push(o)}
+    per.sort((a,b)=>b.tt-a.tt);ag.push(...per)}
+    const tr={key:'Total',_cls:'tot'};tot.forEach(t=>tr[t.k]=t.n);tr.tt=all;ag.push(tr);return ag};
+  return el('div',{class:'grid full'},markedCard(V.pareto,'dim','Pareto de errores',[
+    {k:'graf',l:'Gráfico',sub:'Evaluaciones con el ítem en "No". En azul: ítems que acumulan hasta el 80% · clic en una barra para ver el detalle',body:chart},
+    {k:'tabla',l:'Tabla',sub:'Clic en un ítem para ver su detalle',cols:[KEYCOL('Ítem'),{k:'n',h:'Errores',f:'i',bar:1},{k:'p',h:'%',f:'p'},{k:'acc',h:'% Acum.',f:'p'}],rows,opts:{onRow:r=>itemModal(rs,r._item)}},
+    {k:'ag',l:'Supervisor › Asesor',sub:'Pasa el cursor por el código del ítem para ver su nombre · clic en un asesor para ver su detalle',make:()=>{const ag=agRows();return {cols:[KEYCOL('Supervisor / Asesor'),...tot.map(t=>({k:t.k,h:t.k,f:'i',seq:1,title:ITEM_LBL[t.k]})),{k:'tt',h:'Total',f:'i'}],rows:ag,opts:{seqMax:Math.max(1,...ag.filter(r=>r._cls==='ind').flatMap(r=>tot.map(t=>r[t.k]))),onRow:r=>agentModal(rs,r.key),canRow:r=>r._cls==='ind'}}}}]));
+};
+V.mp=rs=>{
+  const out=[];for(const [a,g] of groupBy(rs,r=>r.agente)){const o={key:a,sup:g[0].sup,antig:g[0].antig,hor:g[0].horario,n:g.length};CRIT.forEach((c,j)=>o['k'+j]=sum(g,r=>r.c[j]));o.tt=CRIT.reduce((q,c,j)=>q+o['k'+j],0);out.push(o)}
+  out.sort((a,b)=>b.tt-a.tt||a.key.localeCompare(b.key));
+  let only=V.mp.only!==false;
+  const seg=el('div',{class:'seg'},...[[true,'Solo con críticos'],[false,'Todos']].map(([k,l])=>el('button',{class:only===k?'on':'',onclick:()=>{V.mp.only=k;render()}},l)));
+  const rows=out.filter(o=>!only||o.tt>0);
+  const tot={key:'Total',_cls:'tot',n:rs.length};CRIT.forEach((c,j)=>tot['k'+j]=sum(rs,r=>r.c[j]));tot.tt=CRIT.reduce((q,c,j)=>q+tot['k'+j],0);
+  const cols=[{k:'key',h:'Asesor',f:'t'},{k:'sup',h:'Supervisor',f:'t'},{k:'antig',h:'Antigüedad',f:'t'},{k:'hor',h:'Horario',f:'t'},{k:'n',h:'Evas',f:'i'},...CRIT.map((c,j)=>({k:'k'+j,h:'AC '+(j+1),title:c,f:'i',seq:1})),{k:'tt',h:'Total',f:'i'}];
+  const lg=el('div',{class:'legend'},...CRIT.map((c,j)=>el('span',{},el('b',{},'AC '+(j+1)+': '),c)));
+  const t=table(cols,rows.concat([tot]),{sortable:1,onRow:r=>agentModal(rs,r.key)});
+  return el('div',{class:'grid full'},card('Aspectos críticos por asesor','Cantidad de evaluaciones con cada aspecto crítico marcado',el('div',{},lg,t),{tools:[searchBox(t,'Buscar asesor…'),seg],csv:t.csv}));
+};
+
+/* ============ Vista de carga ============ */
+function processUP(msg){
+  try{
+    if(!UP.evas)throw new Error('Falta la base de evaluaciones (EVAS).');
+    if(!UP.dota)throw new Error('Falta el padrón de asesores (Dota).');
+    const dota=parseDota(UP.dota.rows);const recs=parseEvas(UP.evas.rows,dota);
+    if(!recs.length)throw new Error('La base de evaluaciones no tiene registros.');
+    DATA={recs,meta:{evas:UP.evas.name,dota:UP.dota.name,at:new Date().toISOString(),nDota:dota.size}};
+    save();buildFilters();VIEW='resumen';renderNav();render();
+  }catch(e){msg.replaceChildren(el('div',{class:'errbox'},e.message))}
+}
+function viewCarga(){
+  const box=el('div',{});
+  const mk=(key,title,desc)=>{
+    const inp=el('input',{type:'file',accept:'.xlsx,.xlsm,.xls,.csv',hidden:''});
+    const st=el('div',{class:'st'},UP[key]?`✓ ${UP[key].name} — ${UP[key].rows.length-1} filas`:'Arrastra el archivo aquí o haz clic para elegirlo (.xlsx / .csv)');
+    const d=el('div',{class:'drop'+(UP[key]?' ok':'')},el('b',{},title),el('div',{class:'note'},desc),st,inp);
+    const take=async f=>{st.textContent='Leyendo '+f.name+'…';try{
+        const wb=await readFile(f);
+        const ev=pickEvasSheet(wb),dt=pickDotaSheet(wb);
+        if(key==='full'){
+          if(!ev)throw new Error('El archivo no tiene la hoja de evaluaciones (columnas QID…, p. ej. «EVAS ipsos»).');
+          if(!dt)throw new Error('El archivo no tiene la hoja de padrón (columna USUARIO, p. ej. «Dota»).');
+          UP.full=f.name;UP.evas={name:f.name+' (hoja EVAS)',rows:ev};UP.dota={name:f.name+' (hoja Dota)',rows:dt};
+          return processUP(msg);
+        }
+        if(key==='evas'){if(!ev)throw new Error('No se encontró una hoja con columnas QID.');UP.evas={name:f.name,rows:ev};if(dt&&!UP.dota)UP.dota={name:f.name+' (hoja Dota)',rows:dt}}
+        else{if(!dt)throw new Error('No se encontró una hoja con la columna USUARIO.');UP.dota={name:f.name,rows:dt}}
+        render();
+      }catch(e){st.textContent='✕ '+e.message;d.classList.remove('ok')}};
+    d.onclick=()=>inp.click();inp.onchange=()=>inp.files[0]&&take(inp.files[0]);
+    d.ondragover=e=>{e.preventDefault();d.classList.add('over')};d.ondragleave=()=>d.classList.remove('over');
+    d.ondrop=e=>{e.preventDefault();d.classList.remove('over');e.dataTransfer.files[0]&&take(e.dataTransfer.files[0])};
+    return d;
+  };
+  const msg=el('div');
+  const go=el('button',{class:'btn primary',onclick:()=>{UP.full=null;processUP(msg)}},'Procesar y actualizar BI');
+  if(!UP.evas||!UP.dota)go.disabled=true;
+  const full=mk('full','Excel final actualizado','Ej.: «10. Prepago - Analisis Motivo de Llamada Oct26 V2.xlsx». Se leen sus hojas «EVAS ipsos» y «Dota»; el resto de pestañas y tablas dinámicas se recalculan aquí.');
+  if(UP.full){full.classList.add('ok');full.querySelector('.st').textContent='✓ '+UP.full}
+  box.append(el('div',{class:'card',style:'margin-top:14px'},
+    el('h3',{},'Cargar datos'),
+    el('div',{class:'sub'},'Sube el Excel final y el BI se actualiza al instante. Los datos se procesan solo en tu navegador y quedan guardados aquí para la próxima vez.'),
+    full,msg,
+    el('details',{style:'margin-top:14px'},el('summary',{class:'note',style:'cursor:pointer'},'Alternativa: subir las bases por separado (export de Qualtrics + padrón)'),
+      el('div',{class:'up',style:'margin-top:10px'},
+        mk('evas','1. Evaluaciones (EVAS ipsos)','Export de monitoreos con columnas QID1…QID88 (Qualtrics).'),
+        mk('dota','2. Padrón de asesores (Dota)','Hoja con USUARIO, NOMBRE Y APELLIDO, ANTIGÜEDAD, SUPERVISOR, MODALIDAD y HORARIO.')),
+      el('div',{style:'margin-top:10px'},go)),
+    DATA?el('div',{style:'margin-top:14px'},el('button',{class:'btn',onclick:()=>{if(confirm('¿Borrar los datos guardados en este navegador?')){DATA=null;try{localStorage.removeItem(STORE)}catch(e){}updateMeta();render()}}},'Borrar datos guardados')):null));
+  if(DATA){
+    const r=DATA.recs,um=r.filter(x=>!x.matched),m=groupBy(um,x=>x.cod);
+    const dates=r.map(x=>x.fecha).filter(Boolean).sort();
+    const info=el('div',{class:'card',style:'margin-top:14px'},el('h3',{},'Datos actuales'),
+      el('div',{class:'note',html:`Evaluaciones: <b>${esc(DATA.meta.evas)}</b> · Padrón: <b>${esc(DATA.meta.dota)}</b> (${DATA.meta.nDota} asesores)<br>${r.length} evaluaciones del ${fmtDate(dates[0])} al ${fmtDate(dates[dates.length-1])}${dates[0]?'/'+dates[0].slice(0,4):''} · cargado ${new Date(DATA.meta.at).toLocaleString('es-PE')}`}));
+    if(um.length)info.append(el('div',{class:'warnbox',html:`<b>${um.length} evaluaciones</b> tienen un código de asesor que no está en el padrón; aparecen como «${SIN}». Códigos: ${[...m.keys()].map(k=>`${esc(k)} (${m.get(k).length})`).join(', ')}`}));
+    box.append(info);
+  }
+  return box;
+}
+
+/* ============ Filtros ============ */
+const FDEF=[['tipo','Tipo encuesta'],['semana','Semana'],['sup','Supervisor'],['antig','Antigüedad'],['tges','T. Gestión'],['mot1','Motivo consulta'],['monitor','Monitor']];
+function buildFilters(){
+  const f=$('#filters');f.replaceChildren();
+  if(!DATA)return;
+  for(const [k,l] of FDEF){
+    const vals=sortKeys(new Set(DATA.recs.map(r=>r[k])),k==='antig'?'antig':'');
+    for(const v of [...FILT[k]])if(!vals.includes(v))FILT[k].delete(v);
+    const btn=el('button',{class:'btn'});
+    const lab=()=>btn.textContent=`${l}: ${FILT[k].size?(FILT[k].size===1?[...FILT[k]][0]:FILT[k].size+' sel.'):'Todos'} ▾`;
+    const list=vals.map(v=>{const cb=el('input',{type:'checkbox'});cb.checked=FILT[k].has(v);cb.onchange=()=>{cb.checked?FILT[k].add(v):FILT[k].delete(v);lab();render()};return el('label',{},cb,v||'(vacío)')});
+    const panel=el('div',{class:'panel'},el('div',{class:'acts'},
+      el('button',{class:'btn sm',onclick:()=>{FILT[k].clear();list.forEach(x=>x.firstChild.checked=false);lab();render()}},'Todos'),
+      el('button',{class:'btn sm',onclick:()=>{const q=prompt('Filtrar opciones que contengan:');if(!q)return;FILT[k].clear();vals.forEach((v,i)=>{const on=norm(v).includes(norm(q));list[i].firstChild.checked=on;if(on)FILT[k].add(v)});lab();render()}},'Buscar…')),...list);
+    const ms=el('div',{class:'ms'},btn,panel);
+    btn.onclick=e=>{e.stopPropagation();document.querySelectorAll('.ms.open').forEach(x=>x!==ms&&x.classList.remove('open'));ms.classList.toggle('open')};
+    panel.onclick=e=>e.stopPropagation();
+    lab();f.append(ms);
+  }
+  const d1=el('input',{type:'date',value:FILT.d1,title:'Desde'}),d2=el('input',{type:'date',value:FILT.d2,title:'Hasta'});
+  d1.onchange=()=>{FILT.d1=d1.value;render()};d2.onchange=()=>{FILT.d2=d2.value;render()};
+  f.append(el('span',{class:'meta'},'Fecha'),d1,d2,el('button',{class:'btn',onclick:()=>{for(const [k] of FDEF)FILT[k].clear();FILT.d1=FILT.d2='';buildFilters();render()}},'Limpiar filtros'));
+  updateMeta();
+}
+function updateMeta(){$('#metaInfo').textContent=DATA?`${DATA.recs.length} evaluaciones · actualizado ${new Date(DATA.meta.at).toLocaleString('es-PE')}`:'Sin datos cargados'}
+document.addEventListener('click',()=>document.querySelectorAll('.ms.open').forEach(x=>x.classList.remove('open')));
+
+/* ============ Inicio ============ */
+$('#themeBtn').onclick=()=>{const r=document.documentElement;const dark=r.dataset.theme?r.dataset.theme==='dark':matchMedia('(prefers-color-scheme: dark)').matches;r.dataset.theme=dark?'light':'dark';try{localStorage.setItem('bi_theme',r.dataset.theme)}catch(e){}render()};
+try{const t=localStorage.getItem('bi_theme');if(t)document.documentElement.dataset.theme=t}catch(e){}
+document.querySelectorAll('input.th').forEach(i=>i.onchange=()=>{try{localStorage.setItem('bi_th',JSON.stringify([...document.querySelectorAll('input.th')].map(x=>x.value)))}catch(e){}render()});
+try{const v=JSON.parse(localStorage.getItem('bi_th')||'null');if(v)document.querySelectorAll('input.th').forEach((x,i)=>x.value=v[i])}catch(e){}
+load();
+if(DATA){VIEW='resumen';buildFilters()}
+renderNav();render();
+</script>
+</body>
+</html>

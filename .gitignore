@@ -1,0 +1,6 @@
+# Datos con información personal: nunca subir
+*.xlsx
+*.xlsm
+*.xls
+*.csv
+~$*
