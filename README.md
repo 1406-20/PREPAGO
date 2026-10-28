@@ -4,7 +4,7 @@ Tablero en un solo archivo HTML que reemplaza al Excel *Prepago - Análisis Moti
 
 ## Uso
 
-1. Abre `BI_Prepago_Motivo_Llamada.html` en el navegador (requiere internet para cargar las librerías).
+1. Abre `index.html` en el navegador (o la página de GitHub Pages del repo) (requiere internet para cargar las librerías).
 2. En **Cargar datos**, sube el Excel final actualizado. Se leen sus hojas «EVAS ipsos» (evaluaciones) y «Dota» (padrón de asesores).
    - Alternativa: subir por separado el export de Qualtrics y el padrón.
 3. Todas las pestañas se recalculan. Los datos se procesan solo en tu navegador y quedan guardados en él; no se envían a ningún servidor.
